@@ -1,17 +1,17 @@
-import "dotenv/config";
-import { defineConfig } from "prisma/config";
+import 'dotenv/config';
+import { defineConfig } from 'prisma/config';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
-  throw new Error("DATABASE_URL not found in env");
+    throw new Error('DATABASE_URL not found in env');
 }
 
 export default defineConfig({
-  schema: "prisma/schema.prisma",
-  migrations: {
-    path: "prisma/migrations",
-  },
-  datasource: {
-    url: databaseUrl,
-  },
+    schema: 'prisma/schema.prisma',
+    migrations: {
+        path: 'prisma/migrations',
+    },
+    datasource: {
+        url: databaseUrl,
+    },
 });

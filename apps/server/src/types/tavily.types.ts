@@ -1,5 +1,5 @@
 export type TavilyResult = {
-  title: string;
-  url: string;
-  content: string;
+    title: string;
+    url: string;
+    content: string;
 };

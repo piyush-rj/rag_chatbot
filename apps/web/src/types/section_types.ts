@@ -1,0 +1,4 @@
+export enum SECTION_TABS {
+    CHAT_SECTION = 'CHAT_SECTION',
+    CHAT_HISTORY = 'CHAT_HISTORY',
+}

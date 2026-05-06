@@ -1,83 +1,98 @@
-import { Account, AuthOptions, ISODateString } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import { JWT } from "next-auth/jwt";
-import axios from "axios";
-import { SIGNIN_URL } from "@/routes/api_routes";
+import { Account, AuthOptions, ISODateString } from 'next-auth';
+import GoogleProvider from 'next-auth/providers/google';
+import { JWT, decode as defaultJwtDecode } from 'next-auth/jwt';
+import axios from 'axios';
+import { SIGNIN_URL } from '@/routes/api_routes';
 
 export interface UserType {
-  id?: string | null;
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  provider?: string | null;
-  token?: string | null;
+    id?: string | null;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    provider?: string | null;
+    token?: string | null;
 }
 
 export interface CustomSession {
-  user?: UserType;
-  expires: ISODateString;
+    user?: UserType;
+    expires: ISODateString;
 }
 
 export const authOption: AuthOptions = {
-  pages: {
-    signIn: "/",
-  },
-  callbacks: {
-    async signIn({
-      user,
-      account,
-    }: {
-      user: UserType;
-      account: Account | null;
-    }) {
-      try {
-        if (account?.provider === "google") {
-          const response = await axios.post(`${SIGNIN_URL}`, {
+    pages: {
+        signIn: '/',
+    },
+    jwt: {
+        async decode(params) {
+            try {
+                return await defaultJwtDecode(params);
+            } catch {
+                return null;
+            }
+        },
+    },
+    callbacks: {
+        async signIn({
             user,
             account,
-          });
+        }: {
+            user: UserType;
+            account: Account | null;
+        }) {
+            try {
+                if (account?.provider === 'google') {
+                    const response = await axios.post(`${SIGNIN_URL}`, {
+                        user,
+                        account,
+                    });
 
-          const result = response.data;
+                    const result = response.data;
 
-          if (result?.success) {
-            user.id = result.data.user.id.toString();
-            user.token = result.data.token;
-            return true;
-          }
-        }
+                    if (result?.success) {
+                        user.id = result.data.user.id.toString();
+                        user.token = result.data.token;
+                        return true;
+                    }
+                }
 
-        if (account?.provider === "email-otp") {
-          return !!user;
-        }
+                if (account?.provider === 'email-otp') {
+                    return !!user;
+                }
 
-        return false;
-      } catch (err) {
-        console.error(err);
-        return false;
-      }
-    },
-    async jwt({ token, user }) {
-      if (user) {
-        token.user = user as UserType;
-      }
-      return token;
-    },
-    async session({ session, token }: { session: CustomSession; token: JWT }) {
-      session.user = token.user as UserType;
-      return session;
-    },
-  },
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
+                return false;
+            } catch (err) {
+                console.error(err);
+                return false;
+            }
         },
-      },
-    }),
-  ],
+        async jwt({ token, user }) {
+            if (user) {
+                token.user = user as UserType;
+            }
+            return token;
+        },
+        async session({
+            session,
+            token,
+        }: {
+            session: CustomSession;
+            token: JWT;
+        }) {
+            session.user = token.user as UserType;
+            return session;
+        },
+    },
+    providers: [
+        GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID || '',
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+            authorization: {
+                params: {
+                    prompt: 'consent',
+                    access_type: 'offline',
+                    response_type: 'code',
+                },
+            },
+        }),
+    ],
 };

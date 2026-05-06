@@ -1,0 +1,41 @@
+@theme {
+    /* text */
+    --color-light-base: #e6edf3;
+    --color-light-alpha: #ffffff;
+    --color-text-primary: #e6edf3;
+    --color-text-secondary: #94a3b8;
+
+    /* surfaces */
+    --color-dark-alpha: #0e0f0f;
+    --color-dark-base: #141415;
+    --color-dark-faded: #121826;
+    --color-surface: #121826;
+
+    /* accents */
+    --color-alpha: #4fd1c5;
+    --color-primary: #4fd1c5;
+    --color-secondary-accent: #7c5cff;
+    --color-highlight: #22c55e;
+}
+
+/* infinite scroll  */
+@layer utilities {
+    @keyframes marquee {
+        from {
+            transform: translateX(0);
+        }
+        to {
+            transform: translateX(-50%);
+        }
+    }
+
+    .animate-marquee {
+        display: flex;
+        width: max-content;
+        animation: marquee 40s linear infinite;
+    }
+
+    .pause-on-hover:hover {
+        animation-play-state: paused;
+    }
+}
