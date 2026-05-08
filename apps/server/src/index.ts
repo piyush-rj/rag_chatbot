@@ -12,5 +12,5 @@ await initServices();
 app.use('/api/v1', router);
 
 app.listen(8080, () => {
-    console.log('server running..');
+    console.log('server running');
 });

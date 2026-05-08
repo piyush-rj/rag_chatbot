@@ -1,12 +1,12 @@
 import { OpenRouter } from '@openrouter/sdk';
-import type { SourceChunk } from './chunker';
-import type { RetrievedSource } from './retriever';
+import type { RetrievedSource } from './retriever_services';
 import REWRITE_PROMPT from './prompts/rewrite_prompt';
 import EXPAND_PROMPT from './prompts/expand_prompt';
 import RERANK_PROMPT from './prompts/rerank_prompt';
 import TITLE_PROMPT from './prompts/title_prompt';
 import SUMMARY_PROMPT from './prompts/summary_prompt';
 import EXTRACT_FACTS_PROMPT from './prompts/extract_facts_prompt';
+import type { SourceChunk } from './chunker_services';
 
 export enum ROLE {
     SYSTEM = 'system',
@@ -26,7 +26,7 @@ export type HistoryMessage = {
 
 type ScoreEntry = { id: number; score: number };
 
-export default class LLMServices {
+export default class LLMService {
     private static readonly MODEL = 'openai/gpt-4o-mini';
     private openRouter = new OpenRouter({
         apiKey: process.env.OPENROUTER_API_KEY,
@@ -37,7 +37,7 @@ export default class LLMServices {
     ): AsyncGenerator<string, void> {
         const stream = await this.openRouter.chat.send({
             chatRequest: {
-                model: LLMServices.MODEL,
+                model: LLMService.MODEL,
                 messages,
                 stream: true,
             },
@@ -52,7 +52,7 @@ export default class LLMServices {
     private async complete(messages: ChatMessage[]): Promise<string> {
         const res = await this.openRouter.chat.send({
             chatRequest: {
-                model: LLMServices.MODEL,
+                model: LLMService.MODEL,
                 messages,
                 stream: false,
             },
@@ -134,7 +134,7 @@ export default class LLMServices {
             return candidates;
         }
 
-        const scores = LLMServices.parseScores(raw);
+        const scores = LLMService.parseScores(raw);
         if (scores.length === 0) return candidates;
 
         const scoreById = new Map(scores.map((s) => [s.id, s.score]));
@@ -276,7 +276,7 @@ export default class LLMServices {
         answer: string,
     ): Promise<string> {
         const userContent = `Existing summary: ${currentSummary ?? '(none yet)'}
-        
+
         New exchange
         User: ${question}
         Assistant: ${answer}

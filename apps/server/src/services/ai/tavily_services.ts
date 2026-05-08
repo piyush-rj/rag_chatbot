@@ -1,7 +1,7 @@
 import { tavily } from '@tavily/core';
-import type { TavilyResult } from '../types/tavily.types';
+import type { TavilyResult } from '../../types/tavily.types';
 
-export default class TavilyServices {
+export default class TavilyService {
     private client = tavily({ apiKey: process.env.TAVILY_API_KEY });
 
     public async search(query: string): Promise<TavilyResult[]> {

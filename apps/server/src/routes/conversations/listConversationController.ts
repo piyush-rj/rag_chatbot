@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import ResponseWriter from '../../../class/response_writer';
-import ConversationServices from '../../../ai/conversation.services';
+import ResponseWriter from '../../services/responses/response_writer';
+import ConversationService from '../../services/db/conversation_services';
 
 function parsePositiveInt(value: unknown): number | undefined {
     if (typeof value !== 'string') return undefined;
@@ -22,7 +22,7 @@ export default async function listConversationsController(
     const limit = parsePositiveInt(req.query.limit);
     const offset = parsePositiveInt(req.query.offset);
 
-    const result = await ConversationServices.listConversations(
+    const result = await ConversationService.listConversations(
         user.id,
         limit,
         offset,

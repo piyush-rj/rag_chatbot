@@ -1,7 +1,7 @@
 import { prisma, Role } from 'database';
 import type { SourceCitation } from 'shared';
 
-export default class DatabaseServices {
+export default class ConversationService {
     static async getOrCreateConversation(
         conversationId: string | undefined,
         firstMessage: string,
@@ -126,67 +126,9 @@ export default class DatabaseServices {
         conversationId: string,
         summary: string,
     ) {
-        return await prisma.conversation.update({
-            where: {
-                id: conversationId,
-            },
-            data: {
-                summary,
-            },
-        });
-    }
-
-    static async getUserMemories(
-        userId: string,
-        limit: number = 30,
-    ): Promise<string[]> {
-        const memories = await prisma.userMemory.findMany({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-            take: limit,
-            select: { fact: true },
-        });
-        return memories.map((m) => m.fact);
-    }
-
-    static async addUserMemories(
-        userId: string,
-        facts: string[],
-        sourceConversationId: string,
-    ) {
-        if (facts.length === 0) return;
-        return prisma.userMemory.createMany({
-            data: facts.map((fact) => ({
-                userId,
-                fact,
-                source: sourceConversationId,
-            })),
-        });
-    }
-
-    static async listUserMemories(userId: string) {
-        return prisma.userMemory.findMany({
-            where: {
-                userId,
-            },
-            orderBy: {
-                createdAt: 'asc',
-            },
-            select: {
-                id: true,
-                fact: true,
-                source: true,
-                createdAt: true,
-            },
-        });
-    }
-
-    static async deleteUserMemory(userId: string, memoryId: string) {
-        return prisma.userMemory.deleteMany({
-            where: {
-                id: memoryId,
-                userId,
-            },
+        return prisma.conversation.update({
+            where: { id: conversationId },
+            data: { summary },
         });
     }
 }

@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import ResponseWriter from '../../../class/response_writer';
-import DatabaseServices from '../../../ai/conversation.services';
+import ResponseWriter from '../../services/responses/response_writer';
+import MemoryService from '../../services/db/memory_services';
 
 export default async function deleteMemoryController(
     req: Request,
@@ -19,7 +19,7 @@ export default async function deleteMemoryController(
     }
 
     try {
-        const result = await DatabaseServices.deleteUserMemory(
+        const result = await MemoryService.deleteUserMemory(
             user.id,
             JSON.stringify(memoryId),
         );

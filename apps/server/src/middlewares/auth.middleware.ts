@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt, { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
-import ResponseWriter from '../class/response_writer';
+import ResponseWriter from '../services/responses/response_writer';
 
 const rawSecret = process.env.JWT_SECRET;
 if (!rawSecret) {

@@ -1,16 +1,13 @@
-import LLMServices from '../ai/llm.services';
-import TavilyServices from '../ai/tavily.services';
-import EmbeddingsServices from '../ai/embeddings.services';
-import Chunker from '../ai/chunker';
+import LLMService from './ai/llm_services';
+import TavilyService from './ai/tavily_services';
+import EmbeddingsService from './ai/embeddings_services';
 
-export let llmInstance: LLMServices;
-export let tavilyInstance: TavilyServices;
-export let embeddingsInstance: EmbeddingsServices;
-export let chunkerInstance: Chunker;
+export let llmInstance: LLMService;
+export let tavilyInstance: TavilyService;
+export let embeddingsInstance: EmbeddingsService;
 
 export default async function initServices() {
-    llmInstance = new LLMServices();
-    tavilyInstance = new TavilyServices();
-    embeddingsInstance = new EmbeddingsServices();
-    chunkerInstance = new Chunker();
+    llmInstance = new LLMService();
+    tavilyInstance = new TavilyService();
+    embeddingsInstance = new EmbeddingsService();
 }

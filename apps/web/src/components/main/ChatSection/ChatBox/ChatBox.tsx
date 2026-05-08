@@ -17,8 +17,12 @@ import { ChatInput } from './ChatInput';
 import { SubmitButton } from './SubmitButton';
 import { VoiceButton } from './VoiceButton';
 import { AttachPanel } from './AttachPanel';
+import { AttachedDocs } from './AttachedDocs';
 import { Paperclip } from 'lucide-react';
 import Image from 'next/image';
+import type { ChangeEvent } from 'react';
+import { useDocumentsStore } from '@/store/useDocumentsStore';
+import { useUserSessionStore } from '@/store/useUserSessionStore';
 
 const submitPop = {
     transition: {
@@ -43,16 +47,20 @@ export default function ChatBox({
     const [attachOpen, setAttachOpen] = useState<boolean>(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const attachTriggerRef = useRef<HTMLButtonElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const wrapperControls = useAnimation();
+    const uploadDocument = useDocumentsStore((s) => s.upload);
+    const session = useUserSessionStore((s) => s.session);
+    const token = session?.user?.token;
 
-    // Auto-focus the textarea when the chat section first renders.
     useEffect(() => {
         textareaRef.current?.focus();
     }, []);
+
     const pathname = usePathname();
     const isConversationPage = pathname !== null && pathname !== '/';
 
-    // Captures whatever was already in the input when dictation starts, so the
+    // captuers whatever was already in the input when dictation starts, so the
     // transcript appends instead of overwriting.
     const dictationBaseRef = useRef<string>('');
 
@@ -79,6 +87,20 @@ export default function ChatBox({
         updateChars(next);
     };
 
+    const handleUploadFiles = useCallback(() => {
+        fileInputRef.current?.click();
+    }, []);
+
+    const handleFileSelected = useCallback(
+        async (e: ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (!file || !token) return;
+            await uploadDocument(file, token);
+        },
+        [token, uploadDocument],
+    );
+
     const handleVoiceToggle = () => {
         if (speech.listening) {
             speech.stop();
@@ -99,10 +121,10 @@ export default function ChatBox({
         setValue('');
         resetChars();
 
-        // Kick off onSubmit immediately so the parent (e.g. layout slide) can start.
+        // kick off onSubmit immediately so the parent (e.g. layout slide) can start.
         const submitPromise = onSubmit?.(trimmed);
 
-        // Hold the thinking ring until the parent's slide/transition has settled.
+        // hold the thinking ring until the parent's slide/transition has settled.
         let ringTimer: ReturnType<typeof setTimeout> | null = null;
         if (thinkingStartDelayMs > 0) {
             ringTimer = setTimeout(start, thinkingStartDelayMs);
@@ -133,10 +155,18 @@ export default function ChatBox({
             <AttachPanel
                 open={attachOpen}
                 onClose={() => setAttachOpen(false)}
-                onUploadFiles={() => {}}
+                onUploadFiles={handleUploadFiles}
                 onConnectDrive={() => {}}
                 triggerRef={attachTriggerRef}
             />
+            <input
+                ref={fileInputRef}
+                type='file'
+                accept='application/pdf'
+                className='hidden'
+                onChange={handleFileSelected}
+            />
+            <AttachedDocs />
             <div className='relative z-20 w-full h-33 overflow-hidden rounded-3xl ring-1 ring-white/5 bg-dark-base shadow-sm shadow-black/40 flex flex-col'>
                 <ChatInput
                     value={value}

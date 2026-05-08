@@ -1,4 +1,4 @@
-import type { SourceChunk } from './chunker';
+import type { SourceChunk } from './chunker_services';
 
 export type RetrievedSource = {
     title: string;

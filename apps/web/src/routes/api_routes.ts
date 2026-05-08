@@ -9,3 +9,6 @@ export const DELETE_CONVERSATION_URL = API_URL + '/conversations/delete';
 export const RENAME_CONVERSATION_URL =
     API_URL + '/conversations/rename-conversation';
 export const MEMORY_URL = API_URL + '/memories';
+
+export const DOCUMENTS_URL = API_URL + '/documents';
+export const UPLOAD_DOCUMENT_URL = API_URL + '/documents/upload';

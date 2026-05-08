@@ -1,34 +1,14 @@
 import { Router } from 'express';
-import askAIController from './controllers/ai-controllers/askAIController';
-import signInController from './controllers/user-controllers/signInController';
-import authMiddleware from '../middlewares/auth.middleware';
-import listConversationsController from './controllers/conversation-controllers/listConversationController';
-import { getConversationController } from './controllers/conversation-controllers/getConversationController';
-import deleteConversationController from './controllers/conversation-controllers/deleteConversationController';
-import renameConversationController from './controllers/conversation-controllers/renameConversationController';
-import listMemoriesController from './controllers/conversation-controllers/listMemoriesController';
-import deleteMemoryController from './controllers/conversation-controllers/deleteMemoryController';
+import aiRoutes from './ai/routes';
+import userRoutes from './users/routes';
+import conversationRoutes from './conversations/routes';
+import documentRoutes from './docs/routes';
 
 const router = Router();
 
-router.post('/sign-in', signInController);
-
-router.post('/ask', authMiddleware, askAIController);
-router.post(
-    '/conversations/rename-conversation/:id',
-    authMiddleware,
-    renameConversationController,
-);
-
-router.get('/conversations', authMiddleware, listConversationsController);
-router.get('/conversations/:id', authMiddleware, getConversationController);
-router.get('/memories', authMiddleware, listMemoriesController);
-
-router.delete(
-    '/conversations/delete/:id',
-    authMiddleware,
-    deleteConversationController,
-);
-router.delete('/memories/:id', authMiddleware, deleteMemoryController);
+router.use(userRoutes);
+router.use(aiRoutes);
+router.use(conversationRoutes);
+router.use(documentRoutes);
 
 export default router;

@@ -99,7 +99,7 @@ export function AttachPanel({
                     ref={panelRef}
                     {...panelMotion}
                     className={cn(
-                        'absolute bottom-12 left-5 z-30 w-64 origin-bottom-left p-1.5 rounded-lg bg-dark-base ring-1 ring-white/5 shadow-lg shadow-black/40',
+                        'absolute bottom-12 left-6 z-30 w-64 origin-bottom-left p-1.5 rounded-lg bg-dark-base ring-1 ring-white/5 shadow-lg shadow-black/40',
                         className,
                     )}
                 >

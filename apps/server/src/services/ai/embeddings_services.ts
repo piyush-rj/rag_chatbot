@@ -1,6 +1,6 @@
 import { OpenRouter } from '@openrouter/sdk';
 
-export default class EmbeddingsServices {
+export default class EmbeddingsService {
     private model = 'openai/text-embedding-3-small';
     private openRouter = new OpenRouter({
         apiKey: process.env.OPENROUTER_API_KEY,

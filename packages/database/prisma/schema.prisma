@@ -4,38 +4,41 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [vector]
 }
 
 model User {
-  id    String @id @default(cuid())
+  id    String  @id @default(cuid())
   name  String
-  email String @unique
+  email String  @unique
   image String?
 
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   conversations Conversation[]
-  memories  UserMemory[]
+  memories      UserMemory[]
+  documents     Document[]
 }
 
 model Conversation {
   id    String @id @default(cuid())
-  title  String
+  title String
 
   createdAt DateTime @default(now())
-  updatedAt DateTime  @updatedAt
+  updatedAt DateTime @updatedAt
 
   summary String?
 
-  userId  String
-  user    User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   messages Message[]
 
@@ -43,15 +46,15 @@ model Conversation {
 }
 
 model Message {
-  id    String @id @default(cuid())
-  role  Role
-  content String
+  id        String   @id @default(cuid())
+  role      Role
+  content   String
   createdAt DateTime @default(now())
 
   sources Source[]
 
-  conversationId  String
-  conversation  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 model Source {
@@ -66,20 +69,80 @@ model Source {
 }
 
 model UserMemory {
-  id  String  @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId  String
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  fact String
-  source  String?
+  fact   String
+  source String?
 
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
+
   @@index([userId])
+}
+
+model Document {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  source DocumentSource
+  status DocumentStatus @default(PENDING)
+
+  name     String
+  mimeType String // application/pdf or application/google-apps.document
+  byteSize Int?
+
+  driveFileId String?
+  driveOwner  String?
+
+  storageKey String?
+
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chunks DocumentChunk[]
+
+  @@unique([userId, driveFileId])
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model DocumentChunk {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  ord       Int
+  text      String
+  embedding Unsupported("vector(1536)")
+
+  pageStart Int?
+  pageEnd   Int?
+
+  createdAt DateTime @default(now())
+
+  @@unique([documentId, ord])
+  @@index([documentId])
 }
 
 enum Role {
   ASSISTANT
   USER
   SYSTEM
+}
+
+enum DocumentSource {
+  PDF
+  DRIVE
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
 }

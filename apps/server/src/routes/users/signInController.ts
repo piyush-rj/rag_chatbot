@@ -1,6 +1,6 @@
 import { prisma } from 'database';
 import type { Request, Response } from 'express';
-import ResponseWriter from '../../../class/response_writer';
+import ResponseWriter from '../../services/responses/response_writer';
 import jwt from 'jsonwebtoken';
 
 interface SignInBody {

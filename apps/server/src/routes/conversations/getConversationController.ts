@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import ConversationServices from '../../../ai/conversation.services';
-import ResponseWriter from '../../../class/response_writer';
+import ConversationService from '../../services/db/conversation_services';
+import ResponseWriter from '../../services/responses/response_writer';
 
 export async function getConversationController(req: Request, res: Response) {
     const user = req.user;
@@ -14,7 +14,7 @@ export async function getConversationController(req: Request, res: Response) {
     }
 
     try {
-        const conversation = await ConversationServices.getConversationDetail(
+        const conversation = await ConversationService.getConversationDetail(
             id,
             user.id,
         );

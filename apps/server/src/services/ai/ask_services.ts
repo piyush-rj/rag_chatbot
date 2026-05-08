@@ -1,18 +1,20 @@
 import { STREAM_EVENT_TYPE } from 'shared';
+import { prisma, Prisma } from 'database';
 import {
     llmInstance,
     tavilyInstance,
     embeddingsInstance,
-    chunkerInstance,
-} from '../services/init.services';
-import LLMServices, {
+} from '../init.services';
+import LLMService, {
     type ChatMessage,
     type HistoryMessage,
-} from './llm.services';
-import Retriever, { type RetrievedSource } from './retriever';
-import DatabaseServices from './conversation.services';
-import SseWriter from '../class/stream_writer';
-import type { TavilyResult } from '../types/tavily.types';
+} from './llm_services';
+import Chunker, { type SourceChunk } from './chunker_services';
+import Retriever, { type RetrievedSource } from './retriever_services';
+import ConversationService from '../db/conversation_services';
+import MemoryService from '../db/memory_services';
+import SseWriter from '../responses/stream_writer';
+import type { TavilyResult } from '../../types/tavily.types';
 
 export default class AskService {
     private static readonly RERANK_POOL = 20;
@@ -31,6 +33,7 @@ export default class AskService {
         private readonly userId: string,
         private readonly message: string,
         private readonly conversationId?: string,
+        private readonly documentIds?: string[],
     ) {}
 
     public async run(): Promise<void> {
@@ -38,8 +41,14 @@ export default class AskService {
         await this.loadHistory();
 
         const searchQuery = await this.rewriteAndSave();
-        const rawSources = await this.searchWeb(searchQuery);
-        const topSources = await this.retrieveTop(searchQuery, rawSources);
+
+        const useDocs = (this.documentIds?.length ?? 0) > 0;
+        const topSources = useDocs
+            ? await this.retrieveFromDocs(searchQuery)
+            : await this.retrieveTop(
+                  searchQuery,
+                  await this.searchWeb(searchQuery),
+              );
 
         this.emitSources(topSources);
 
@@ -54,12 +63,12 @@ export default class AskService {
 
     private async initConversation(): Promise<void> {
         const [conversation, userFacts] = await Promise.all([
-            DatabaseServices.getOrCreateConversation(
+            ConversationService.getOrCreateConversation(
                 this.conversationId,
                 this.message,
                 this.userId,
             ),
-            DatabaseServices.getUserMemories(this.userId),
+            MemoryService.getUserMemories(this.userId),
         ]);
 
         this.currentConversationId = conversation.id;
@@ -74,7 +83,7 @@ export default class AskService {
 
     private async loadHistory(): Promise<void> {
         if (!this.conversationId) return;
-        this.history = await DatabaseServices.getConversationHistory(
+        this.history = await ConversationService.getConversationHistory(
             this.currentConversationId,
             this.userId,
         );
@@ -84,7 +93,7 @@ export default class AskService {
     private async rewriteAndSave(): Promise<string> {
         const [searchQuery] = await Promise.all([
             llmInstance.rewriteQuery(this.history, this.message),
-            DatabaseServices.saveUserMessage(
+            ConversationService.saveUserMessage(
                 this.currentConversationId,
                 this.message,
             ),
@@ -107,7 +116,7 @@ export default class AskService {
         searchQuery: string,
         rawSources: TavilyResult[],
     ): Promise<RetrievedSource[]> {
-        const chunks = chunkerInstance.chunkSources(rawSources);
+        const chunks = Chunker.chunkSources(rawSources);
 
         const vectors = await embeddingsInstance.embed([
             searchQuery,
@@ -131,6 +140,55 @@ export default class AskService {
         return Retriever.groupByUrl(reranked.slice(0, AskService.TOP_K));
     }
 
+    private async retrieveFromDocs(
+        searchQuery: string,
+    ): Promise<RetrievedSource[]> {
+        const documentIds = this.documentIds ?? [];
+        if (documentIds.length === 0) return [];
+
+        const [queryVector] = await embeddingsInstance.embed([searchQuery]);
+        if (!queryVector) return [];
+        const queryLiteral = `[${queryVector.join(',')}]`;
+
+        const rows = await prisma.$queryRaw<
+            Array<{
+                text: string;
+                documentName: string;
+                documentId: string;
+                pageStart: number | null;
+                pageEnd: number | null;
+            }>
+        >`
+            SELECT
+                c."text",
+                d."name" AS "documentName",
+                d."id" AS "documentId",
+                c."pageStart",
+                c."pageEnd"
+            FROM "DocumentChunk" c
+            JOIN "Document" d ON d."id" = c."documentId"
+            WHERE d."userId" = ${this.userId}
+              AND c."documentId" IN (${Prisma.join(documentIds)})
+            ORDER BY c."embedding" <=> ${queryLiteral}::vector
+            LIMIT ${AskService.RERANK_POOL}
+        `;
+
+        if (rows.length === 0) return [];
+
+        const candidates: SourceChunk[] = rows.map((r) => ({
+            text: r.text,
+            sourceTitle: r.documentName,
+            sourceUrl: `doc://${r.documentId}`,
+        }));
+
+        const reranked = await llmInstance.rerankChunks(
+            searchQuery,
+            candidates,
+        );
+
+        return Retriever.groupByUrl(reranked.slice(0, AskService.TOP_K));
+    }
+
     private emitSources(sources: RetrievedSource[]): void {
         this.stream.send({
             type: STREAM_EVENT_TYPE.SOURCES,
@@ -139,7 +197,7 @@ export default class AskService {
     }
 
     private async streamAnswer(sources: RetrievedSource[]): Promise<string> {
-        const messages: ChatMessage[] = LLMServices.buildGroundedMessages(
+        const messages: ChatMessage[] = LLMService.buildGroundedMessages(
             this.message,
             sources,
             this.history,
@@ -163,14 +221,14 @@ export default class AskService {
         answer: string,
         sources: RetrievedSource[],
     ): Promise<void> {
-        await DatabaseServices.saveAssistantMessage(
+        await ConversationService.saveAssistantMessage(
             this.currentConversationId,
             answer,
             sources.map((s) => ({ title: s.title, url: s.url })),
         );
 
         const tasks: Promise<unknown>[] = [
-            DatabaseServices.touchConversation(
+            ConversationService.touchConversation(
                 this.currentConversationId,
                 this.userId,
             ),
@@ -189,7 +247,7 @@ export default class AskService {
                 this.message,
                 answer,
             );
-            await DatabaseServices.updateConversationSummary(
+            await ConversationService.updateConversationSummary(
                 this.currentConversationId,
                 newSummary,
             );
@@ -212,7 +270,7 @@ export default class AskService {
             );
             if (newFacts.length === 0) return;
 
-            await DatabaseServices.addUserMemories(
+            await MemoryService.addUserMemories(
                 this.userId,
                 newFacts,
                 this.currentConversationId,
@@ -226,7 +284,7 @@ export default class AskService {
     private async generateAndSaveTitle(answer: string): Promise<void> {
         try {
             const title = await llmInstance.generateTitle(this.message, answer);
-            await DatabaseServices.updateConversationTitle(
+            await ConversationService.updateConversationTitle(
                 this.currentConversationId,
                 title,
             );
@@ -235,7 +293,6 @@ export default class AskService {
         }
     }
 
-    // remove duplicate sources
     private static removeDuplicates(results: TavilyResult[]): TavilyResult[] {
         const seen = new Set<string>();
         const out: TavilyResult[] = [];

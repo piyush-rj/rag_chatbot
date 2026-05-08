@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
-import ResponseWriter from '../../../class/response_writer';
+import ResponseWriter from '../../services/responses/response_writer';
 import { prisma } from 'database';
-import rename_chat_schema from '../../../schemas/conversation_controller_schemas/rename_chat_schema';
+import rename_chat_schema from '../../schemas/rename_chat_schema';
 
 export default async function renameConversationController(
     req: Request,

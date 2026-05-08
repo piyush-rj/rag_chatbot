@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import ResponseWriter from '../../../class/response_writer';
-import DatabaseServices from '../../../ai/conversation.services';
+import ResponseWriter from '../../services/responses/response_writer';
+import MemoryService from '../../services/db/memory_services';
 
 export default async function listMemoriesController(
     req: Request,
@@ -13,7 +13,7 @@ export default async function listMemoriesController(
     }
 
     try {
-        const memories = await DatabaseServices.listUserMemories(user.id);
+        const memories = await MemoryService.listUserMemories(user.id);
         ResponseWriter.ok(res, { memories });
     } catch (error) {
         console.error('listUserMemories controller failed: ', error);
