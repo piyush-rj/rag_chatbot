@@ -1,5 +1,6 @@
 export const STREAM_EVENT_TYPE = {
     CONVERSATION: 'CONVERSATION',
+    STATUS: 'STATUS',
     SOURCES: 'SOURCES',
     TOKEN: 'TOKEN',
     DONE: 'DONE',
@@ -12,10 +13,14 @@ export type StreamEventType =
 export type SourceCitation = {
     title: string;
     url: string;
+    // Formatted page reference for doc-mode sources (e.g. "4" or "4–7").
+    // null/undefined for web-mode sources where pages don't apply.
+    page?: string | null;
 };
 
 export type StreamEvent =
     | { type: typeof STREAM_EVENT_TYPE.CONVERSATION; id: string }
+    | { type: typeof STREAM_EVENT_TYPE.STATUS; value: string }
     | { type: typeof STREAM_EVENT_TYPE.SOURCES; sources: SourceCitation[] }
     | { type: typeof STREAM_EVENT_TYPE.TOKEN; value: string }
     | { type: typeof STREAM_EVENT_TYPE.DONE }

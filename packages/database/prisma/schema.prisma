@@ -40,7 +40,8 @@ model Conversation {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  messages Message[]
+  messages  Message[]
+  documents ConversationDocument[]
 
   @@index([userId])
 }
@@ -51,16 +52,18 @@ model Message {
   content   String
   createdAt DateTime @default(now())
 
-  sources Source[]
+  sources     Source[]
+  attachments MessageAttachment[]
 
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 model Source {
-  id    String @id @default(cuid())
+  id    String  @id @default(cuid())
   title String
   url   String
+  page  String?
 
   messageId String
   message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
@@ -104,11 +107,43 @@ model Document {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  chunks DocumentChunk[]
+  chunks             DocumentChunk[]
+  conversations      ConversationDocument[]
+  messageAttachments MessageAttachment[]
 
   @@unique([userId, driveFileId])
   @@index([userId, status])
   @@index([userId, createdAt])
+}
+
+model MessageAttachment {
+  id String @id @default(cuid())
+
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  documentId String?
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  documentName String
+
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+}
+
+model ConversationDocument {
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([conversationId, documentId])
+  @@index([conversationId])
+  @@index([documentId])
 }
 
 model DocumentChunk {

@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import ResponseWriter from '../../services/responses/response_writer';
-import IngestionService from '../../services/pdf/ingestion_services';
+import IngestionService, {
+    EmptyPdfError,
+} from '../../services/pdf/ingestion_services';
 
 export default async function uploadDocumentController(
     req: Request,
@@ -27,20 +29,29 @@ export default async function uploadDocumentController(
         return;
     }
 
+    // redecode to resolve the mojibake issue
+    const originalName = Buffer.from(file.originalname, 'latin1').toString(
+        'utf8',
+    );
+
     try {
         const result = await IngestionService.ingestPdf(
             file.buffer,
-            file.originalname,
+            originalName,
             file.mimetype,
             user.id,
         );
         ResponseWriter.created(res, {
             documentId: result.documentId,
-            name: file.originalname,
+            name: originalName,
             chunkCount: result.chunkCount,
             status: 'READY',
         });
     } catch (error) {
+        if (error instanceof EmptyPdfError) {
+            ResponseWriter.badRequest(res, error.message, 'EMPTY_PDF');
+            return;
+        }
         console.error('uploadDocument failed', { error });
         ResponseWriter.serverError(res, 'Document processing failed');
     }

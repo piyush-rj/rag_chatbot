@@ -6,6 +6,8 @@ import deleteConversationController from './deleteConversationController';
 import renameConversationController from './renameConversationController';
 import listMemoriesController from './listMemoriesController';
 import deleteMemoryController from './deleteMemoryController';
+import attachDocumentController from './attachDocumentController';
+import detachDocumentController from './detachDocumentController';
 
 const conversationRoutes = Router();
 
@@ -35,6 +37,17 @@ conversationRoutes.delete(
     '/memories/:id',
     authMiddleware,
     deleteMemoryController,
+);
+
+conversationRoutes.post(
+    '/conversations/:id/documents',
+    authMiddleware,
+    attachDocumentController,
+);
+conversationRoutes.delete(
+    '/conversations/:id/documents/:documentId',
+    authMiddleware,
+    detachDocumentController,
 );
 
 export default conversationRoutes;

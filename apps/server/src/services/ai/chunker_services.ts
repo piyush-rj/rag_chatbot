@@ -5,6 +5,8 @@ export type SourceChunk = {
     text: string;
     sourceTitle: string;
     sourceUrl: string;
+    pageStart?: number | null;
+    pageEnd?: number | null;
 };
 
 export type PageChunk = {

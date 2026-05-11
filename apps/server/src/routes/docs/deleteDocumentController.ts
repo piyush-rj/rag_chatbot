@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import ResponseWriter from '../../services/responses/response_writer';
 import { prisma } from 'database';
+import DocumentStorage from '../../services/pdf/document_storage_services';
 
 export default async function deleteDocumentController(
     req: Request,
@@ -19,13 +20,19 @@ export default async function deleteDocumentController(
     }
 
     try {
-        const { count } = await prisma.document.deleteMany({
+        const document = await prisma.document.findFirst({
             where: { id, userId: user.id },
+            select: { id: true, storageKey: true },
         });
 
-        if (count === 0) {
+        if (!document) {
             ResponseWriter.notFound(res, 'Document not found');
             return;
+        }
+
+        await prisma.document.delete({ where: { id: document.id } });
+        if (document.storageKey) {
+            await DocumentStorage.deleteIfExists(document.storageKey);
         }
 
         ResponseWriter.ok(res, { documentId: id });

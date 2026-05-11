@@ -48,7 +48,7 @@ export default function ChatSection() {
     const name = session?.user?.name?.split(' ')[0] ?? '';
 
     return (
-        <main className='flex-1 flex flex-col min-w-0 h-full'>
+        <main className='flex-1 flex flex-col min-w-0 h-full bg-dark-alpha'>
             <div className='flex-1 flex flex-col min-h-0'>
                 <AnimatePresence mode='popLayout'>
                     {!showEmpty && (

@@ -14,16 +14,21 @@ export default function authMiddleware(
     next: NextFunction,
 ) {
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-        ResponseWriter.unauthorized(res, 'Missing bearer token');
-        return;
+    const queryToken =
+        typeof req.query.token === 'string' ? req.query.token : null;
+
+    let accessToken: string | null = null;
+    if (authHeader?.startsWith('Bearer ')) {
+        accessToken = authHeader.split(' ')[1] ?? null;
+    } else if (queryToken) {
+        // Allow ?token=<jwt> for endpoints opened directly by the browser
+        // (e.g. PDF file links) where setting an Authorization header isn't
+        // possible. Header form is preferred everywhere else.
+        accessToken = queryToken;
     }
 
-    const accessToken = authHeader.startsWith('Bearer ')
-        ? authHeader.split(' ')[1]
-        : null;
     if (!accessToken) {
-        ResponseWriter.unauthorized(res, 'Token not found');
+        ResponseWriter.unauthorized(res, 'Missing bearer token');
         return;
     }
 

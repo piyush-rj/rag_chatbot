@@ -22,7 +22,9 @@ import { Paperclip } from 'lucide-react';
 import Image from 'next/image';
 import type { ChangeEvent } from 'react';
 import { useDocumentsStore } from '@/store/useDocumentsStore';
+import { useChatStore } from '@/store/useChatStore';
 import { useUserSessionStore } from '@/store/useUserSessionStore';
+import DrivePickerServices from '@/services/drive/picker';
 
 const submitPop = {
     transition: {
@@ -50,12 +52,23 @@ export default function ChatBox({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const wrapperControls = useAnimation();
     const uploadDocument = useDocumentsStore((s) => s.upload);
+    const uploadFromDrive = useDocumentsStore((s) => s.uploadFromDrive);
+    const setActiveConversationInDocs = useDocumentsStore(
+        (s) => s.setActiveConversation,
+    );
+    const currentConversationId = useChatStore((s) => s.currentConversationId);
     const session = useUserSessionStore((s) => s.session);
     const token = session?.user?.token;
 
     useEffect(() => {
         textareaRef.current?.focus();
     }, []);
+
+    // Keep the docs store in sync with whichever conversation is active so
+    // uploads land in the right bucket (or in the pending bucket when null).
+    useEffect(() => {
+        setActiveConversationInDocs(currentConversationId);
+    }, [currentConversationId, setActiveConversationInDocs]);
 
     const pathname = usePathname();
     const isConversationPage = pathname !== null && pathname !== '/';
@@ -100,6 +113,21 @@ export default function ChatBox({
         },
         [token, uploadDocument],
     );
+
+    const handleConnectDrive = useCallback(async () => {
+        if (!token) return;
+        try {
+            const { files, accessToken } =
+                await DrivePickerServices.connectAndPick();
+            // Fire-and-forget so multiple selected files ingest in parallel;
+            // each gets its own optimistic chip via the docs store.
+            for (const file of files) {
+                void uploadFromDrive(file, accessToken, token);
+            }
+        } catch (err) {
+            console.error('Drive picker failed', err);
+        }
+    }, [token, uploadFromDrive]);
 
     const handleVoiceToggle = () => {
         if (speech.listening) {
@@ -156,7 +184,7 @@ export default function ChatBox({
                 open={attachOpen}
                 onClose={() => setAttachOpen(false)}
                 onUploadFiles={handleUploadFiles}
-                onConnectDrive={() => {}}
+                onConnectDrive={handleConnectDrive}
                 triggerRef={attachTriggerRef}
             />
             <input

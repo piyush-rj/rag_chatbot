@@ -2,7 +2,7 @@ import multer, { MulterError } from 'multer';
 import type { Request, Response, NextFunction } from 'express';
 import ResponseWriter from '../services/responses/response_writer';
 
-const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25MB
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -18,7 +18,7 @@ export default function uploadSingleMiddleware(
 ) {
     single(req, res, (err) => {
         if (err instanceof MulterError) {
-            if (err.code === 'LIMIT_FILE_SIZE') {
+            if (err.code == 'LIMIT_FILE_SIZE') {
                 ResponseWriter.badRequest(
                     res,
                     'File exceeds 25 MB limit',

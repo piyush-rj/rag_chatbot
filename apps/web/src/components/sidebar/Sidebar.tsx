@@ -47,7 +47,7 @@ export default function Sidebar() {
     return (
         <aside
             className={cn(
-                'shrink-0 flex flex-col select-none overflow-hidden ',
+                'shrink-0 flex flex-col select-none overflow-hidden bg-dark-alpha',
                 'transition-[width] ease-out',
                 isCollapsed
                     ? 'w-14 duration-200 border-r border-white/6'

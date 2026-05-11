@@ -8,13 +8,17 @@ export type PdfPage = {
 
 export default class PdfParser {
     public static async parse(buffer: Uint8Array): Promise<PdfPage[]> {
-        // pdfjs-dist 5.x version rejects node buffers (which extend Uint8Array but are
-        // detected via instanceof Buffer). hence rewrap to a plain Uint8Array view.
-        const data = new Uint8Array(
-            buffer.buffer,
-            buffer.byteOffset,
-            buffer.byteLength,
-        );
+        // work on a copy of the bytes, not a view. pdfjs-dist 5.x transfers
+        // ownership of the underlying ArrayBuffer for performance, which
+        // leaves the caller's `buffer` detached and unreadable afterwards
+        // (an issue we only hit once the bytes also need to be PUT to S3).
+
+        // Note: `buffer.slice()` is NOT safe here because multer hands us a
+        // Node Buffer (Buffer extends Uint8Array but overrides slice to
+        // return a view that shares the same ArrayBuffer). Explicit
+        // allocate + set guarantees a real copy regardless of subclass.
+        const data = new Uint8Array(buffer.byteLength);
+        data.set(buffer);
 
         const pdf = await getDocument({
             data,

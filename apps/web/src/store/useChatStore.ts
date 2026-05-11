@@ -3,9 +3,8 @@ import { SourceCitation } from 'shared';
 import { ConversationSummary } from '@/types/conversation.types';
 import ConversationApi from '@/services/backend_services/conversation.api';
 import { streamAsk } from '@/services/backend_services/ask_stream.api';
+import { useDocumentsStore } from './useDocumentsStore';
 
-// Update the URL bar without triggering a Next.js navigation/rerender.
-// Falls back silently on the server (where window is undefined).
 function syncUrl(conversationId: string | null) {
     if (typeof window === 'undefined') return;
     const target = conversationId ? `/${conversationId}` : '/';
@@ -14,11 +13,18 @@ function syncUrl(conversationId: string | null) {
     }
 }
 
+export type UIAttachment = {
+    id: string;
+    documentId: string | null;
+    documentName: string;
+};
+
 export type UIMessage = {
     id: string;
     role: 'USER' | 'ASSISTANT';
     content: string;
     sources?: SourceCitation[];
+    attachments?: UIAttachment[];
 };
 
 interface ChatStoreData {
@@ -27,6 +33,7 @@ interface ChatStoreData {
     messages: UIMessage[];
     streamingAnswer: string;
     streamingSources: SourceCitation[];
+    streamingStatus: string | null;
     isStreaming: boolean;
 
     loadConversations: (token: string) => Promise<void>;
@@ -43,6 +50,7 @@ export const useChatStore = create<ChatStoreData>((set, get) => ({
     messages: [],
     streamingAnswer: '',
     streamingSources: [],
+    streamingStatus: null,
     isStreaming: false,
 
     loadConversations: async (token) => {
@@ -59,16 +67,24 @@ export const useChatStore = create<ChatStoreData>((set, get) => ({
                 id: m.id,
                 role: m.role as 'USER' | 'ASSISTANT',
                 content: m.content,
-                sources: m.sources.map((s) => ({ title: s.title, url: s.url })),
+                sources: m.sources.map((s) => ({
+                    title: s.title,
+                    url: s.url,
+                    page: s.page ?? null,
+                })),
+                attachments: m.attachments,
             }));
         set({
             currentConversationId: id,
             messages,
             streamingAnswer: '',
             streamingSources: [],
+            streamingStatus: null,
             isStreaming: false,
         });
         syncUrl(id);
+
+        useDocumentsStore.getState().setActiveConversation(id);
     },
 
     newConversation: () => {
@@ -77,9 +93,11 @@ export const useChatStore = create<ChatStoreData>((set, get) => ({
             messages: [],
             streamingAnswer: '',
             streamingSources: [],
+            streamingStatus: null,
             isStreaming: false,
         });
         syncUrl(null);
+        useDocumentsStore.getState().setActiveConversation(null);
     },
 
     removeConversation: (id) => {
@@ -111,10 +129,31 @@ export const useChatStore = create<ChatStoreData>((set, get) => ({
         const trimmed = message.trim();
         if (!trimmed || get().isStreaming) return;
 
+        const docsState = useDocumentsStore.getState();
+        const documentIds = docsState.getActiveAttachedIds();
+        const attachmentSnapshots = docsState.getActiveAttachedSnapshots();
+
+        // Match the server: drop attachments already stamped on an earlier
+        // user message in this conversation so the chip doesn't repeat.
+        const previousAttachmentIds = new Set(
+            get()
+                .messages.flatMap((m) => m.attachments ?? [])
+                .map((a) => a.documentId)
+                .filter((id): id is string => typeof id === 'string'),
+        );
+        const newSnapshots = attachmentSnapshots.filter(
+            (s) => !previousAttachmentIds.has(s.id),
+        );
+
         const userMsg: UIMessage = {
             id: `local-${Date.now()}`,
             role: 'USER',
             content: trimmed,
+            attachments: newSnapshots.map((s) => ({
+                id: `local-att-${s.id}`,
+                documentId: s.id,
+                documentName: s.name,
+            })),
         };
 
         set((s) => ({
@@ -122,7 +161,13 @@ export const useChatStore = create<ChatStoreData>((set, get) => ({
             isStreaming: true,
             streamingAnswer: '',
             streamingSources: [],
+            streamingStatus: null,
         }));
+
+        // Clear the chip tray once the message is on its way. The server's
+        // join table still has these docs attached to the conversation, so
+        // follow-up questions can keep referencing them.
+        docsState.clearActiveAttached();
 
         const conversationId = get().currentConversationId ?? undefined;
 
@@ -134,7 +179,16 @@ export const useChatStore = create<ChatStoreData>((set, get) => ({
                     if (get().currentConversationId !== id) {
                         set({ currentConversationId: id });
                         syncUrl(id);
+                        const docsStore = useDocumentsStore.getState();
+                        // first msg of a new chat: pending bucket becomes this conversation's bucket
+                        if (!conversationId) {
+                            docsStore.promotePending(id);
+                        }
+                        docsStore.setActiveConversation(id);
                     }
+                },
+                onStatus: (status) => {
+                    set({ streamingStatus: status });
                 },
                 onSources: (sources) => {
                     set({ streamingSources: sources });
@@ -155,19 +209,25 @@ export const useChatStore = create<ChatStoreData>((set, get) => ({
                             messages: [...s.messages, assistantMsg],
                             streamingAnswer: '',
                             streamingSources: [],
+                            streamingStatus: null,
                             isStreaming: false,
                         }));
                     } else {
-                        set({ isStreaming: false });
+                        set({ isStreaming: false, streamingStatus: null });
                     }
                     void get().loadConversations(token);
                 },
                 onError: (err) => {
                     console.error('streamAsk error:', err);
-                    set({ isStreaming: false, streamingAnswer: '' });
+                    set({
+                        isStreaming: false,
+                        streamingAnswer: '',
+                        streamingStatus: null,
+                    });
                 },
             },
             conversationId,
+            documentIds,
         );
     },
 }));

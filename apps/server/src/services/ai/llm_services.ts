@@ -74,7 +74,6 @@ export default class LLMService {
             .join('\n');
 
         const userContent = `Conversation:\n${formattedHistory}\n\nLatest message: ${latestMessage}\n\nRewritten:`;
-        console.log('users content is -------------> ', userContent);
 
         const result = await this.complete([
             { role: ROLE.SYSTEM, content: REWRITE_PROMPT },
@@ -171,6 +170,7 @@ export default class LLMService {
         history: HistoryMessage[] = [],
         summary?: string | null,
         userFacts: string[] = [],
+        freshlyAttachedDocs: string[] = [],
     ): ChatMessage[] {
         const formattedSources = sources
             .map(
@@ -188,26 +188,45 @@ export default class LLMService {
                       .join('\n')}\n\n`
                 : '';
 
-        const recapBlock = summary
-            ? `Recap of this conversation so far:\n${summary}\n\n`
-            : '';
+        // When the user just attached new docs, drop the running summary.
+        // The summary is built from the prior conversation (often about a
+        // different document) and tends to anchor the model on the wrong
+        // subject when it tries to resolve "this pdf".
+        const recapBlock =
+            summary && freshlyAttachedDocs.length === 0
+                ? `Recap of this conversation so far:\n${summary}\n\n`
+                : '';
 
-        const systemContent = `${userBlock}${recapBlock}You are a research assistant named Raven. Answer the user's question using ONLY the sources provided below.
+        const attachmentBlock =
+            freshlyAttachedDocs.length > 0
+                ? `For this turn, the user has just attached the following document(s): ${freshlyAttachedDocs.join(', ')}. The Sources section below contains chunks from these documents. Phrases like "this pdf", "this document", or "the file I uploaded" refer to these — even if earlier messages in this conversation discussed other documents.\n\n`
+                : '';
+
+        const systemContent = `${userBlock}${recapBlock}${attachmentBlock}You are a research assistant named Raven. Answer the user's question using ONLY the sources provided below.
 
         Rules:
         - Cite sources inline using [1], [2], etc. matching the source numbers below.
-        - Only say "I don't have enough information" if you cannot answer at all.
+        - Only say "I don't have enough information" if the sources are clearly empty or unrelated. If they contain any relevant content, summarize what's there.
         - Be concise and factual.
 
         Sources:
         ${formattedSources}`;
 
-        const historyMessages: ChatMessage[] = history
-            .filter((m) => m.role === 'USER' || m.role === 'ASSISTANT')
-            .map((m) => ({
-                role: m.role === 'USER' ? ROLE.USER : ROLE.ASSISTANT,
-                content: m.content,
-            }));
+        // Skip conversation history when fresh docs are attached — its prior
+        // turns likely discussed a different document and would mislead the
+        // model. The user's current message stands on its own with the
+        // attachment context above.
+        const historyMessages: ChatMessage[] =
+            freshlyAttachedDocs.length > 0
+                ? []
+                : history
+                      .filter(
+                          (m) => m.role === 'USER' || m.role === 'ASSISTANT',
+                      )
+                      .map((m) => ({
+                          role: m.role === 'USER' ? ROLE.USER : ROLE.ASSISTANT,
+                          content: m.content,
+                      }));
 
         return [
             { role: ROLE.SYSTEM, content: systemContent },

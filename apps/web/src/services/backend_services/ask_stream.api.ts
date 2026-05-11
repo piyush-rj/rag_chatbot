@@ -9,6 +9,7 @@ export type Source = SourceCitation;
 
 type StreamCallbacks = {
     onConversation?: (id: string) => void;
+    onStatus?: (status: string) => void;
     onSources: (sources: Source[]) => void;
     onToken: (token: string) => void;
     onDone: () => void;
@@ -20,6 +21,7 @@ export async function streamAsk(
     token: string,
     callbacks: StreamCallbacks,
     conversationId?: string,
+    documentIds?: string[],
 ): Promise<void> {
     try {
         const res = await fetch(ASK_QUERY_URL, {
@@ -28,7 +30,7 @@ export async function streamAsk(
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ message, conversationId }),
+            body: JSON.stringify({ message, conversationId, documentIds }),
         });
 
         if (!res.ok || !res.body) {
@@ -59,6 +61,9 @@ export async function streamAsk(
                 switch (msg.type) {
                     case STREAM_EVENT_TYPE.CONVERSATION:
                         callbacks.onConversation?.(msg.id);
+                        break;
+                    case STREAM_EVENT_TYPE.STATUS:
+                        callbacks.onStatus?.(msg.value);
                         break;
                     case STREAM_EVENT_TYPE.SOURCES:
                         callbacks.onSources(msg.sources);

@@ -4,6 +4,8 @@ export type RetrievedSource = {
     title: string;
     url: string;
     chunks: string[];
+    pageStart?: number | null;
+    pageEnd?: number | null;
 };
 
 export default class Retriever {
@@ -30,15 +32,40 @@ export default class Retriever {
             const existing = grouped.get(chunk.sourceUrl);
             if (existing) {
                 existing.chunks.push(chunk.text);
+                if (chunk.pageStart != null) {
+                    existing.pageStart =
+                        existing.pageStart == null
+                            ? chunk.pageStart
+                            : Math.min(existing.pageStart, chunk.pageStart);
+                }
+                if (chunk.pageEnd != null) {
+                    existing.pageEnd =
+                        existing.pageEnd == null
+                            ? chunk.pageEnd
+                            : Math.max(existing.pageEnd, chunk.pageEnd);
+                }
             } else {
                 grouped.set(chunk.sourceUrl, {
                     title: chunk.sourceTitle,
                     url: chunk.sourceUrl,
                     chunks: [chunk.text],
+                    pageStart: chunk.pageStart ?? null,
+                    pageEnd: chunk.pageEnd ?? null,
                 });
             }
         }
         return Array.from(grouped.values());
+    }
+
+    // Format a source's page range for display. "4" if start == end,
+    // "4–7" otherwise. Returns null when no page info is available.
+    public static formatPageLabel(source: RetrievedSource): string | null {
+        const start = source.pageStart;
+        const end = source.pageEnd;
+        if (start == null && end == null) return null;
+        const lo = start ?? end!;
+        const hi = end ?? start!;
+        return lo === hi ? String(lo) : `${lo}–${hi}`;
     }
 
     private static cosineSimilarity(a: number[], b: number[]): number {

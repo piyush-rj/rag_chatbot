@@ -2,20 +2,19 @@ import type { Request, Response } from 'express';
 import ResponseWriter from '../../services/responses/response_writer';
 import { prisma } from 'database';
 
-export default async function listDocumentsController(
+export default async function getAllDocumentsController(
     req: Request,
     res: Response,
 ) {
     const user = req.user;
-    if (!user) {
+    if (!user || !user.id) {
         ResponseWriter.unauthorized(res);
         return;
     }
 
     try {
-        const documents = await prisma.document.findMany({
+        const docs = await prisma.document.findMany({
             where: { userId: user.id },
-            orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
                 name: true,
@@ -26,10 +25,13 @@ export default async function listDocumentsController(
                 errorMessage: true,
                 createdAt: true,
             },
+            orderBy: { createdAt: 'desc' },
         });
-        ResponseWriter.ok(res, { documents });
+
+        ResponseWriter.ok(res, { docs });
     } catch (error) {
-        console.error('listDocuments failed', { error });
+        console.error('getAllDocumentsController error: ', error);
         ResponseWriter.serverError(res);
+        return;
     }
 }

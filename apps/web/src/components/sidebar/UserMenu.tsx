@@ -42,7 +42,7 @@ export default function UserMenu({ isCollapsed = false }: Props) {
     return (
         <div
             className={cn(
-                'flex items-center rounded-lg group overflow-hidden h-11 bg-dark-base transition-all transform duration-200',
+                'flex items-center rounded-lg group overflow-hidden h-11 transition-all transform duration-200',
                 isCollapsed ? 'w-9' : 'w-full px-1',
             )}
         >
